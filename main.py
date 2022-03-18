@@ -18,10 +18,8 @@ class Main:
     <step>
         <step_number><![CDATA[]]></step_number>
         <actions>
-
         </actions>
         <expectedresults>
-
         </expectedresults>
         <execution_type><![CDATA[]]></execution_type>
     </step>"""
@@ -36,10 +34,11 @@ class Main:
                 inner_text_step_number = etree.CDATA(str(2))
                 subtag.text = inner_text_step_number
             elif subtag.tag == "actions":
-                inner_text_actions = etree.CDATA(str(Main.temp_tag))
+                inner_text_actions = etree.CDATA(str())
                 subtag.text = inner_text_actions
             elif subtag.tag == "expectedresults":
-                pass
+                inner_text_results = etree.CDATA(str())
+                subtag.text = inner_text_results
             elif subtag.tag == "execution_type":
                 inner_text_execution_type = etree.CDATA(str(1))
                 subtag.text = inner_text_execution_type
@@ -53,12 +52,14 @@ class Main:
         inner_counter = 0
 
         for tag in inner_text.find_all(re.compile("^p")):
-            if tag:
-                inner_counter += 1
+            inner_counter += 1
 
-            if inner_counter > 1:
+            if inner_counter == 1:
                 Main.temp_tag = tag
-                # Main.add_new_steps(local_grandgrandchild)
+
+            elif inner_counter > 1:
+                Main.add_new_steps(local_grandgrandchild)
+                # local_grandgrandgrandchild.text = etree.CDATA(str(Main.temp_tag))
 
     @staticmethod
     def renumber_steps(tag):
