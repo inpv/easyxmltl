@@ -1,84 +1,22 @@
 import os
-import re
 import datetime as dt
-from bs4 import BeautifulSoup
 from lxml import etree
 
 
 class Main:
 
-    temp_tag = None
-    steps_counter = 0
-
     parser = None
     file_object = None
     root = None
-
-    xml_string = """
-    <step>
-        <step_number><![CDATA[]]></step_number>
-        <actions>
-        </actions>
-        <expectedresults>
-        </expectedresults>
-        <execution_type><![CDATA[]]></execution_type>
-    </step>"""
+    doc_type = None
+    steps_counter = 0
+    time_range = 0
 
     @staticmethod
-    def add_new_steps(local_grandgrandchild):
-
-        tag = etree.fromstring(Main.xml_string, Main.parser)
-
-        for subtag in tag:
-            if subtag.tag == "step_number":
-                inner_text_step_number = etree.CDATA(str(2))
-                subtag.text = inner_text_step_number
-            elif subtag.tag == "actions":
-                inner_text_actions = etree.CDATA(str())
-                subtag.text = inner_text_actions
-            elif subtag.tag == "expectedresults":
-                inner_text_results = etree.CDATA(str())
-                subtag.text = inner_text_results
-            elif subtag.tag == "execution_type":
-                inner_text_execution_type = etree.CDATA(str(1))
-                subtag.text = inner_text_execution_type
-
-        local_grandgrandchild.addnext(tag)
-
-    @staticmethod
-    def slice_inner_tags(local_grandgrandgrandchild, local_grandgrandchild):
-
-        inner_text = BeautifulSoup(local_grandgrandgrandchild.text, features="lxml")
-        inner_counter = 0
-
-        for tag in inner_text.find_all(re.compile("^p")):
-            inner_counter += 1
-
-            if inner_counter == 1:
-                Main.temp_tag = tag
-
-            elif inner_counter > 1:
-                Main.add_new_steps(local_grandgrandchild)
-                # local_grandgrandgrandchild.text = etree.CDATA(str(Main.temp_tag))
-
-    @staticmethod
-    def renumber_steps(tag):
+    def renumber_steps(tag):  # creates a new step index and writes to the tag
         Main.steps_counter += 1
         new_text = etree.CDATA(str(Main.steps_counter))
         tag.text = new_text
-
-    @staticmethod
-    def switch_modes(grandgrandgrandchild, grandgrandchild):  # switches editing modes based on tag name
-        if grandgrandgrandchild.tag == "step_number":
-            pass
-            # Main.renumber_steps(grandgrandgrandchild)
-
-        elif grandgrandgrandchild.tag == "actions":
-            # pass
-            Main.slice_inner_tags(grandgrandgrandchild, grandgrandchild)
-
-        elif grandgrandgrandchild.tag == "expectedresults":
-            pass
 
     @staticmethod
     def process_document(destination):  # loops through the entire XML document and writes to it
@@ -89,28 +27,41 @@ class Main:
 
         Main.steps_counter = 0
 
-        for child in Main.root:
-            for subchild in child:
-                for grandchild in subchild:
-                    for grandgrandchild in grandchild:
-                        for grandgrandgrandchild in grandgrandchild:
-                            Main.switch_modes(grandgrandgrandchild, grandgrandchild)
+        if Main.doc_type == 1:
+            for child in Main.root:
+                for subchild in child:
+                    for grandchild in subchild:
+                        for grandgrandchild in grandchild:
+                            if grandgrandchild.tag == "step_number":
+                                Main.renumber_steps(grandgrandchild)
 
-                        if grandgrandchild.getnext() is None:
+                        if grandchild.getnext() is None:
                             Main.steps_counter = 0
+
+        elif Main.doc_type == 2:
+            for child in Main.root:
+                for subchild in child:
+                    for grandchild in subchild:
+                        for grandgrandchild in grandchild:
+                            for grandgrandgrandchild in grandgrandchild:
+                                if grandgrandgrandchild.tag == "step_number":
+                                    Main.renumber_steps(grandgrandgrandchild)
+
+                            if grandgrandchild.getnext() is None:
+                                Main.steps_counter = 0
 
         Main.file_object.write(destination, encoding="utf-8", xml_declaration=True)
 
         print("File at dest " + destination + " written successfully!")
 
     @staticmethod
-    def main():  # processes all recently updated XML files within a set time range
+    def process_files():  # processes all recently updated XML files within a set time range
         now = dt.datetime.now()
-        ago = now - dt.timedelta(minutes=360)
+        ago = now - dt.timedelta(minutes=Main.time_range)
         user = os.getlogin()
         files_arr = []
 
-        for root, dirs, files in os.walk('C:\\Users\\'+str(user)+'\\Downloads\\'):
+        for root, dirs, files in os.walk('C:\\Users\\' + str(user) + '\\Downloads\\'):
             for fname in files:
                 path = os.path.join(root, fname)
                 st = os.stat(path)
@@ -122,6 +73,23 @@ class Main:
 
         for file in files_arr:
             Main.process_document(file)
+
+    @staticmethod
+    def main():
+        print()
+        print("Welcome to easyxmltl, a utility for bulk TestLink test case editing.")
+        print()
+        print("Set the time range (in minutes) for the files you wish to process.")
+        Main.time_range = int(input("Time range: "))
+        print()
+        print("Set the document type you wish to process.")
+        print("1. Test case")
+        print("2. Test suite")
+        print()
+        Main.doc_type = int(input("Document type: "))
+        print()
+        print("Starting process...")
+        Main.process_files()
 
 
 if __name__ == "__main__":
